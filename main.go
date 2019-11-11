@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-
+	"sitoo/db"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 )
@@ -41,20 +41,21 @@ func notFound(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	db, err := sql.Open("mysql",
+	var err error
+	db.DBCon, err := sql.Open("mysql",
 		"root:rootroot@tcp(127.0.0.1:3306)/sitoo_test_assignment")
 	if err != nil {
 		log.Fatal(err)
 	} else {
 		fmt.Println("db connection Established")
 	}
-	defer db.Close()
+	defer db.DBCon.Close()
 
 	var (
 		title string
 		price float64
 	)
-	rows, err := db.Query("select title, price from sitoo_test_assignment.product where product_id = ?", 1)
+	rows, err := db.DBCon.Query("select title, price from sitoo_test_assignment.product where product_id = ?", 1)
 	if err != nil {
 		log.Fatal(err)
 	}
