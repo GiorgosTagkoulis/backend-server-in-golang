@@ -210,7 +210,7 @@ func main() {
 	r := mux.NewRouter()
 	api := r.PathPrefix("/api/products").Subrouter()
 	api.HandleFunc("", getProducts).Methods(http.MethodGet)
-	api.HandleFunc("/{id}", getProduct).Methods(http.MethodGet)
+	api.HandleFunc("/{id:[0-9]+}", getProduct).Methods(http.MethodGet)
 	api.HandleFunc("", post).Methods(http.MethodPost)
 	api.HandleFunc("", put).Methods(http.MethodPut)
 	api.HandleFunc("", delete).Methods(http.MethodDelete)
