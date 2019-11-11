@@ -50,10 +50,17 @@ INSERT INTO `sitoo_test_assignment`.`product`
   ('product_9', 'sku_9', 40.0, '2019-05-09', '2019-06-23'),
   ('product_10', 'sku_10', 45.0, '2019-05-10', '2019-07-10');
 
+INSERT INTO `sitoo_test_assignment`.`product` 
+  (title, sku, description, price, created, last_updated)
+  VALUES
+  ('product_11', 'sku_11', 'desc', 10.5, '2019-05-01', '2019-06-03');
+
 INSERT INTO `sitoo_test_assignment`.`product_barcode` 
   (product_id, barcode)
   VALUES
   (1, 'barcode_1'),
+  (1, 'barcode_111'),
+  (1, 'barcode_1111'),
   (2, 'barcode_2'),
   (3, 'barcode_3'),
   (4, 'barcode_4'),
@@ -62,12 +69,15 @@ INSERT INTO `sitoo_test_assignment`.`product_barcode`
   (7, 'barcode_7'),
   (8, 'barcode_8'),
   (9, 'barcode_9'),
-  (10, 'barcode_10');
+  (10, 'barcode_10'),
+  (11, 'barcode_11');
 
 INSERT INTO `sitoo_test_assignment`.`product_attribute`
   (product_id, name, value)
   VALUES
   (1, 'name_1', 'value_1'),
+  (1, 'name_11', 'value_11'),
+  (1, 'name_111', 'value_111'),
   (2, 'name_2', 'value_2'),
   (3, 'name_3', 'value_3'),
   (4, 'name_4', 'value_4'),
@@ -76,4 +86,5 @@ INSERT INTO `sitoo_test_assignment`.`product_attribute`
   (7, 'name_7', 'value_7'),
   (8, 'name_8', 'value_8'),
   (9, 'name_9', 'value_9'),
-  (10, 'name_10', 'value_10');
+  (10, 'name_10', 'value_10'),
+  (11, 'name_11', 'value_11');

@@ -40,6 +40,7 @@ type GetProduct struct {
 	Title       string      `json:"title"`
 	Sku         string      `json:"sku"`
 	Barcodes    []string    `json:"barcodes"`
+	Description string      `json:"description"`
 	Attributes  []Attribute `json:"attributes"`
 	Price       float64     `json:"price"`
 	Created     time.Time   `json:"created"`
@@ -122,7 +123,7 @@ func getProducts(w http.ResponseWriter, r *http.Request) {
 func getProduct(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
-	result, err := db.Query("SELECT p.product_id, p.title, p.sku, b.barcode, a.name, a.value, p.price, p.created, p.last_updated FROM sitoo_test_assignment.product p LEFT JOIN sitoo_test_assignment.product_barcode b ON p.product_id = b.product_id LEFT JOIN sitoo_test_assignment.product_attribute a ON p.product_id = a.product_id WHERE p.product_id = ? ", params["id"])
+	result, err := db.Query("SELECT p.product_id, p.title, p.sku, b.barcode, p.description, a.name, a.value, p.price, p.created, p.last_updated FROM sitoo_test_assignment.product p LEFT JOIN sitoo_test_assignment.product_barcode b ON p.product_id = b.product_id LEFT JOIN sitoo_test_assignment.product_attribute a ON p.product_id = a.product_id WHERE p.product_id = ? ", params["id"])
 	if err != nil {
 		errorHandler(w, r, http.StatusInternalServerError)
 		return
@@ -131,14 +132,20 @@ func getProduct(w http.ResponseWriter, r *http.Request) {
 	var getProduct GetProduct
 	var barcodes []string
 	var barcode string
+	var desc sql.NullString
 	var attributes []Attribute
 	var attribute Attribute
 	i := 0
 	for result.Next() {
-		err := result.Scan(&getProduct.ProductID, &getProduct.Title, &getProduct.Sku, &barcode, &attribute.Name, &attribute.Value, &getProduct.Price, &getProduct.Created, &getProduct.LastUpdated)
+		err := result.Scan(&getProduct.ProductID, &getProduct.Title, &getProduct.Sku, &barcode, &desc, &attribute.Name, &attribute.Value, &getProduct.Price, &getProduct.Created, &getProduct.LastUpdated)
 		if err != nil {
 			errorHandler(w, r, http.StatusInternalServerError)
 			return
+		}
+		if desc.Valid {
+			getProduct.Description = desc.String
+		} else {
+			getProduct.Description = "null"
 		}
 		if !HasElem(attributes, attribute) {
 			attributes = append(attributes, attribute)
