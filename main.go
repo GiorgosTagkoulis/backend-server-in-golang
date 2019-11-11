@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,31 +11,58 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// DB the variable to have the db global
-var DB *sql.DB
+var db *sql.DB
+var err error
+
+// Item is the return value
+type Item struct {
+	ProductID string `json:"productId"`
+	Title     string `json:"title"`
+}
+
+// Post is for the posts
+type Post struct {
+	TotalCount int    `json:"totalCount"`
+	Items      []Item `json:"items"`
+}
 
 func get(w http.ResponseWriter, r *http.Request) {
-	var (
-		title string
-		price float64
-	)
-	rows, err := DB.Query("select title, price from sitoo_test_assignment.product where product_id = ?", 1)
+	params := mux.Vars(r)
+	var post Post
+	var items []Item
+
+	countRes, err := db.Query("SELECT COUNT(product_id) FROM sitoo_test_assignment.product")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer rows.Close()
+	defer countRes.Close()
+	for countRes.Next() {
+		if err := countRes.Scan(&post.TotalCount); err != nil {
+			log.Fatal(err)
+		}
+	}
 
-	for rows.Next() {
-		err := rows.Scan(&title, &price)
+	itemRes, err := db.Query("SELECT product_id, title FROM sitoo_test_assignment.product")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer itemRes.Close()
+
+	for itemRes.Next() {
+		var item Item
+		err := itemRes.Scan(&item.ProductID, &item.Title)
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Println(title, price)
+		// log.Println(post)
+		items = append(items, item)
 	}
 
+	post.Items = items
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "get called"}`))
+	json.NewEncoder(w).Encode(post)
+	// w.Write([]byte(`{"message": "get called"}`))
 }
 
 func post(w http.ResponseWriter, r *http.Request) {
@@ -58,11 +86,11 @@ func delete(w http.ResponseWriter, r *http.Request) {
 func notFound(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotFound)
-	w.Write([]byte(`{"message": "not found"}`))
+	w.Write([]byte(`{"errorText": "The error message"}`))
 }
 
 func main() {
-	db, err := sql.Open("mysql",
+	db, err = sql.Open("mysql",
 		"root:rootroot@tcp(127.0.0.1:3306)/sitoo_test_assignment")
 	if err != nil {
 		log.Fatal(err)
@@ -70,8 +98,6 @@ func main() {
 		fmt.Println("db connection Established")
 	}
 	defer db.Close()
-
-	DB = db
 
 	r := mux.NewRouter()
 	api := r.PathPrefix("/api/products").Subrouter()
