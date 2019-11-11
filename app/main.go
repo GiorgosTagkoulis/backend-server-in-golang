@@ -2,11 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 
 	_ "github.com/go-sql-driver/mysql"
-
 	"github.com/gorilla/mux"
 )
 
@@ -45,6 +45,8 @@ func main() {
 		"root:rootroot@tcp(127.0.0.1:3306)/sitoo_test_assignment")
 	if err != nil {
 		log.Fatal(err)
+	} else {
+		fmt.Println("db connection Established")
 	}
 	defer db.Close()
 
