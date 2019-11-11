@@ -27,7 +27,25 @@ type Post struct {
 }
 
 func get(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
+	v := r.URL.Query()
+
+	start := v.Get("start")
+	if len(start) == 0 {
+		start = "0"
+	}
+	num := v.Get("num")
+	if len(num) == 0 {
+		num = "10"
+	}
+	sku := v.Get("sku")
+	if len(sku) == 0 {
+		sku = "%"
+	}
+	barcode := v.Get("barcode")
+	if len(barcode) == 0 {
+		barcode = "%"
+	}
+
 	var post Post
 	var items []Item
 
@@ -42,7 +60,7 @@ func get(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	itemRes, err := db.Query("SELECT product_id, title FROM sitoo_test_assignment.product")
+	itemRes, err := db.Query("SELECT p.product_id, p.title FROM sitoo_test_assignment.product p LEFT JOIN sitoo_test_assignment.product_barcode b ON p.product_id = b.product_id WHERE p.sku LIKE ? AND b.barcode LIKE ? LIMIT ? OFFSET ?", sku, barcode, num, start)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -54,7 +72,7 @@ func get(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		// log.Println(post)
+		fmt.Println(item)
 		items = append(items, item)
 	}
 
