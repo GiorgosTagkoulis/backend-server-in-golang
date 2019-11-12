@@ -85,21 +85,24 @@ func getProducts(w http.ResponseWriter, r *http.Request) {
 
 	countRes, err := db.Query("SELECT COUNT(product_id) FROM sitoo_test_assignment.product")
 	if err != nil {
+		log.Println(err.Error())
 		errorHandler(w, r, http.StatusInternalServerError)
-		// log.Fatal(err)
+		return
 	}
 	defer countRes.Close()
 	for countRes.Next() {
 		if err := countRes.Scan(&getAllProducts.TotalCount); err != nil {
-			// log.Fatal(err)
+			log.Println(err.Error())
 			errorHandler(w, r, http.StatusInternalServerError)
+			return
 		}
 	}
 
 	itemRes, err := db.Query("SELECT p.product_id, p.title FROM sitoo_test_assignment.product p LEFT JOIN sitoo_test_assignment.product_barcode b ON p.product_id = b.product_id WHERE p.sku LIKE ? AND b.barcode LIKE ? LIMIT ? OFFSET ?", sku, barcode, num, start)
 	if err != nil {
+		log.Println(err.Error())
 		errorHandler(w, r, http.StatusInternalServerError)
-		// log.Fatal(err)
+		return
 	}
 	defer itemRes.Close()
 
@@ -107,10 +110,10 @@ func getProducts(w http.ResponseWriter, r *http.Request) {
 		var item Item
 		err := itemRes.Scan(&item.ProductID, &item.Title)
 		if err != nil {
+			log.Println(err.Error())
 			errorHandler(w, r, http.StatusInternalServerError)
-			// log.Fatal(err)
+			return
 		}
-		// fmt.Println(item)
 		items = append(items, item)
 	}
 
@@ -125,6 +128,7 @@ func getProduct(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	result, err := db.Query("SELECT p.product_id, p.title, p.sku, b.barcode, p.description, a.name, a.value, p.price, p.created, p.last_updated FROM sitoo_test_assignment.product p LEFT JOIN sitoo_test_assignment.product_barcode b ON p.product_id = b.product_id LEFT JOIN sitoo_test_assignment.product_attribute a ON p.product_id = a.product_id WHERE p.product_id = ? ", params["id"])
 	if err != nil {
+		log.Println(err.Error())
 		errorHandler(w, r, http.StatusInternalServerError)
 		return
 	}
@@ -139,6 +143,7 @@ func getProduct(w http.ResponseWriter, r *http.Request) {
 	for result.Next() {
 		err := result.Scan(&getProduct.ProductID, &getProduct.Title, &getProduct.Sku, &barcode, &desc, &attribute.Name, &attribute.Value, &getProduct.Price, &getProduct.Created, &getProduct.LastUpdated)
 		if err != nil {
+			log.Println(err.Error())
 			errorHandler(w, r, http.StatusInternalServerError)
 			return
 		}
@@ -156,12 +161,18 @@ func getProduct(w http.ResponseWriter, r *http.Request) {
 		i++
 	}
 	if i == 0 {
-		errorHandler(w, r, http.StatusNotFound)
+		response := fmt.Sprintf("{\nerrorText: Can't find product %s \n}", params["id"])
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(response))
 		return
 	}
 	getProduct.Barcodes = barcodes
 	getProduct.Attributes = attributes
 	json.NewEncoder(w).Encode(getProduct)
+}
+
+func getProductError(w http.ResponseWriter, r *http.Request) {
+	errorHandler(w, r, http.StatusBadRequest)
 }
 
 func post(w http.ResponseWriter, r *http.Request) {
@@ -179,21 +190,55 @@ func put(w http.ResponseWriter, r *http.Request) {
 func delete(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "delete called"}`))
+	params := mux.Vars(r)
+	var count int
+	countRes, err := db.Query("SELECT COUNT(*) FROM sitoo_test_assignment.product LEFT JOIN sitoo_test_assignment.product_attribute ON sitoo_test_assignment.product.product_id = sitoo_test_assignment.product_attribute.product_id LEFT JOIN sitoo_test_assignment.product_barcode ON sitoo_test_assignment.product_barcode.product_id = sitoo_test_assignment.product.product_id WHERE sitoo_test_assignment.product.product_id = ? ", params["id"])
+	if err != nil {
+		errorHandler(w, r, http.StatusInternalServerError)
+		fmt.Println("got here")
+		log.Println(err.Error())
+		return
+	}
+	defer countRes.Close()
+	for countRes.Next() {
+		if err := countRes.Scan(&count); err != nil {
+			errorHandler(w, r, http.StatusInternalServerError)
+			log.Println(err.Error())
+		}
+	}
+	if count == 0 {
+		response := fmt.Sprintf("{\nerrorText: Product with id %s does not exist \n}", params["id"])
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(response))
+		return
+	}
+	stmt, err := db.Prepare("DELETE sitoo_test_assignment.product, sitoo_test_assignment.product_attribute, sitoo_test_assignment.product_barcode FROM sitoo_test_assignment.product LEFT JOIN sitoo_test_assignment.product_attribute ON sitoo_test_assignment.product.product_id = sitoo_test_assignment.product_attribute.product_id LEFT JOIN sitoo_test_assignment.product_barcode ON sitoo_test_assignment.product_barcode.product_id = sitoo_test_assignment.product.product_id WHERE sitoo_test_assignment.product.product_id = ? ")
+	if err != nil {
+		log.Println(err.Error())
+	}
+	_, err = stmt.Exec(params["id"])
+	if err != nil {
+		log.Println(err.Error())
+	}
+	w.Write([]byte("true"))
+}
+
+func deleteError(w http.ResponseWriter, r *http.Request) {
+	errorHandler(w, r, http.StatusBadRequest)
 }
 
 func errorHandler(w http.ResponseWriter, r *http.Request, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	switch status {
-	case http.StatusNotFound:
-		w.Write([]byte(`{"404": "Page Not Found"}`))
+	case http.StatusBadRequest:
+		w.Write([]byte(`{"errorText": "Bad Request!"}`))
 		break
 	case http.StatusInternalServerError:
-		w.Write([]byte(`"500": "Internal Server Error !"`))
+		w.Write([]byte(`{"errorText": "Internal Server Error !"}`))
 		break
 	default:
-		w.Write([]byte(`"500": "Internal Server Error !"`))
+		w.Write([]byte(`{"errorText": "Internal Server Error !"}`))
 	}
 }
 
@@ -211,8 +256,10 @@ func main() {
 	api := r.PathPrefix("/api/products").Subrouter()
 	api.HandleFunc("", getProducts).Methods(http.MethodGet)
 	api.HandleFunc("/{id:[0-9]+}", getProduct).Methods(http.MethodGet)
+	api.HandleFunc("/{id}", getProductError).Methods(http.MethodGet)
 	api.HandleFunc("", post).Methods(http.MethodPost)
 	api.HandleFunc("", put).Methods(http.MethodPut)
-	api.HandleFunc("", delete).Methods(http.MethodDelete)
+	api.HandleFunc("/{id:[0-9]+}", delete).Methods(http.MethodDelete)
+	api.HandleFunc("/{id}", deleteError).Methods(http.MethodDelete)
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
